@@ -1,0 +1,45 @@
+#! /usr/bin/env bash
+#
+#  script to build gems for all relevant platforms
+#
+set -o errexit
+set -o nounset
+set -x
+
+rm -rf tmp pkg gems
+mkdir -p gems
+
+bundle update
+bundle package
+
+bundle exec rake clean
+bundle exec rake compile test
+
+# MRI et al (standard gem)
+bundle exec rake clean
+bundle exec rake gem
+cp -v pkg/nokogiri*.gem gems
+
+# jruby
+bundle exec rake clean
+bundle exec rake gem:jruby
+cp -v pkg/nokogiri-*java*.gem gems
+
+# precompiled native gems ("fat binary")
+bundle exec rake clean
+
+bundle exec rake gem:windows
+cp -v pkg/nokogiri-*mingw*.gem gems
+
+bundle exec rake gem:linux
+cp -v pkg/nokogiri-*linux*.gem gems
+
+bundle exec rake gem:darwin
+cp -v pkg/nokogiri-*darwin*.gem gems
+
+# test those gem files!
+$(dirname $0)/test-gem-set gems/*.gem
+
+pushd gems
+  ls *.gem | sort | xargs sha256sum
+popd
